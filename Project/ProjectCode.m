@@ -2,15 +2,15 @@
 % Autonomous car has a forward speed of 2, and human dirver has a forward
 % speed of 1
 ncol = 2;
-nrow = 10;
-tmax = 10;
+nrow = 40; % if this value is changed, remember to change the value in the reward function.  
+tmax = 21;
 
 States = zeros(ncol,nrow,tmax); %x_axis, y_axis, t_axis
 
 % Initialization
 V_A = zeros(ncol, nrow, ncol, nrow, tmax + 1);% t=22 here for initialization
 V_H = zeros(ncol, nrow, ncol, nrow, tmax + 1);
-
+mj = 0;
 for(t = tmax : -1 : 1)
     for (x_A = 1 : ncol)
         for (y_A = 1 : nrow)
@@ -75,9 +75,12 @@ for(t = tmax : -1 : 1)
                                         end
                                     end
                                 end
-                                % Simple policy: if autonomous car move foward and both cars are in the same lane,
-                                % human driver would give up his lane.
-                                if (x_A == x_H)
+                                % Simple policy: if autonomous car move
+                                % foward and both cars are in the same
+                                % lane, and the human driver is in front of
+                                % the autonomous car, human driver would 
+                                % give up his lane.
+                                if (x_A == x_H && y_H > y_A)
                                     if (x_A == 1) % Human should move to right
                                         q_H_A_forward_star = q_H_right_A_forward;
                                         q_A_A_forward = reward_A(x_A, y_A, x_H, y_H) + V_A(x_H + 1, y_H, x_A, y_A + 2, t+1);
@@ -132,7 +135,7 @@ for(t = tmax : -1 : 1)
                                 %Simple policy: if autonomous car move left,
                                 %human driver would move to the right lane
                                 q_H_A_left_star = q_H_right_A_left;
-                                if (x_H + 1 <= ncol)
+                                if (x_H + 1 <= ncol && y_H > y_A)
                                     q_A_A_left = reward_A(x_A, y_A, x_H, y_H) + V_A(x_H + 1, y_H, x_A - 1, y_A, t+1);
                                 elseif (y_H + 1 <= nrow)
                                     q_A_A_left = reward_A(x_A, y_A, x_H, y_H) + V_A(x_H, y_H + 1, x_A - 1, y_A, t+1);
@@ -199,6 +202,7 @@ for(t = tmax : -1 : 1)
                             end
                         end
                     end
+                    %mj = mj + 1
                     q_A_star = max([q_A_A_stay, q_A_A_forward, q_A_A_left, q_A_A_right]);
                     V_A(x_A, y_A, x_H, y_H, t) = q_A_star;
                     if (q_A_star == q_A_A_stay)
@@ -206,7 +210,6 @@ for(t = tmax : -1 : 1)
                     elseif(q_A_star == q_A_A_forward)
                         V_H(x_A, y_A, x_H, y_H, t) = q_H_A_forward_star;
                     elseif(q_A_star == q_A_A_left)
-                        [q_A_A_stay, q_A_A_forward, q_A_A_left, q_A_A_right]
                         V_H(x_A, y_A, x_H, y_H, t) = q_H_A_left_star;
                     elseif(q_A_star == q_A_A_right)
                         V_H(x_A, y_A, x_H, y_H, t) = q_H_A_right_star;
@@ -217,18 +220,26 @@ for(t = tmax : -1 : 1)
     end
 end
 
+heatmap(V_A(:, :, 1, 20, 12)); % t = 12, V_
+
 function reward = reward_H(x_A, y_A, x_H, y_H)
+nrow = 40; 
 if (abs(y_A - y_H) <= 3 && x_A == x_H)
-    reward = 0;
+    reward_1 = -2000;
 else
-    reward = 10;
+    reward_1 = 0;
 end
+reward_2 = 400 - 10* (nrow - y_H);
+reward = reward_1 + reward_2;
 end
 
 function reward = reward_A(x_A, y_A, x_H, y_H)
+nrow = 40;
 if (abs(y_A - y_H) <= 3 && x_A == x_H)
-    reward = 0;
+    reward_1 = -2000;
 else
-    reward = 10;
+    reward_1 = 0;
 end
+reward_2 = 400 - 10 * (nrow - y_A);
+reward = reward_1 + reward_2;
 end
